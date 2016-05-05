@@ -146,17 +146,19 @@ public class Canvas extends JPanel implements ModelListener
         {
             repaint(shape.getBounds());
         }
-    }
+    } //End repaintShape
     
     
-    //Paints Canvas
+    //Paints and draw the shapes on canvas
     @Override
     public void paintComponent(Graphics g) 
     {
         super.paintComponent(g);
         for(DShape shape : shapes)
+        {
             shape.draw(g, (selected == shape));
-    }
+        }
+    } //End paintComponent
     
     //Select the object that contains the given point if it exists
     public void selectObject(Point pt) 
