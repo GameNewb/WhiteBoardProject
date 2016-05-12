@@ -80,7 +80,9 @@ public abstract class DShape implements ModelListener
         Rectangle bounds = getBounds();
         
         if(bounds.contains(pt))
+        {
             return true;
+        }
         
         // Handle conditions where the shape has width or height 0
         if(bounds.width == 0
@@ -102,6 +104,11 @@ public abstract class DShape implements ModelListener
     public Color getColor() 
     {
         return model.getColor();
+    }
+    
+    public int getModelID()
+    {
+        return model.getID();
     }
     
     //Set the color of the shape
@@ -137,6 +144,11 @@ public abstract class DShape implements ModelListener
         
     } //End getKnobs
     
+    public void removeCorrespondingShape()
+    {
+        model.removeCorrespondingShape();
+    }
+    
     //Checks to see if a knob is selected
     public boolean selectedKnob(Point click, Point knobCenter) 
     {
@@ -156,6 +168,12 @@ public abstract class DShape implements ModelListener
     {
         if(this.model == model) 
         {
+            if(model.modelRemoved())
+            {
+                canvas.remove(this);
+                return;
+            }
+            
             canvas.repaintShape(this);
             
             //If bounds have changed, repaint the area

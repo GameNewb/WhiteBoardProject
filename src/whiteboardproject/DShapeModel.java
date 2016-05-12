@@ -19,6 +19,8 @@ public abstract class DShapeModel
     
     protected Rectangle bounds;
     protected Color color;
+    protected int shapeID;
+    protected boolean removeModel;
     
     public DShapeModel() 
     {
@@ -35,6 +37,7 @@ public abstract class DShapeModel
         bounds = new Rectangle(x, y, width, height);
         this.color = color;
         listeners = new ArrayList<ModelListener>();
+        removeModel = false;
     } //End DShapeModel constructor
     
     //Get the current location of the model
@@ -99,6 +102,11 @@ public abstract class DShapeModel
         return bounds;
     }
     
+    public int getID()
+    {
+        return shapeID;
+    }
+    
     //Sets the bounds with given x and coordinates, width and height
     public void setBounds(int x, int y, int width, int height) 
     {
@@ -120,6 +128,11 @@ public abstract class DShapeModel
         notifyListeners();
     }
     
+    public void setID(int newID)
+    {
+        shapeID = newID;
+    }
+    
     //Set the color of the model
     public void setColor(Color color) 
     {
@@ -131,6 +144,12 @@ public abstract class DShapeModel
     public Color getColor() 
     {
         return color;
+    }
+    
+    public void removeCorrespondingShape()
+    {
+        removeModel = true;
+        notifyListeners();
     }
     
     //Adds the current listener object to the list
@@ -145,6 +164,19 @@ public abstract class DShapeModel
         return listeners.remove(listener);
     }
     
+    public void mimic(DShapeModel other)
+    {
+        setBounds(other.getBounds());
+        setColor(other.getColor());
+        setID(other.getID());
+        notifyListeners();
+    }
+    
+    public boolean modelRemoved()
+    {
+        return removeModel;
+    }
+    
     //Notify the listener if the model has changed
     public void notifyListeners() 
     {
@@ -153,5 +185,21 @@ public abstract class DShapeModel
             listener.modelChanged(this);
         }
     } 
+    
+    
+    public int getX(){
+    	return bounds.x;
+    }
+    public int getY(){
+    	return bounds.y;
+    }
+    
+    public int getHeight(){
+    	return bounds.height;
+    }
+    
+    public int getWidth(){
+    	return bounds.width;
+    }
     
 } //End DShapeModel
