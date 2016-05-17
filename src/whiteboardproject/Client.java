@@ -8,6 +8,11 @@ package whiteboardproject;
 /**
  *
  * @author Kiyeon
+ * Kyle Del Castillo
+ * Student #009445384
+ * CS 151 - Object Oriented Design
+ * Prof. Vidya Rangasayee
+ * 
  */
 
 import java.beans.XMLDecoder;

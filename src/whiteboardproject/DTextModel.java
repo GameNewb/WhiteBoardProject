@@ -31,6 +31,16 @@ public class DTextModel extends DShapeModel
         fontStyle = FONT;
     } //End DTextModel constructor
     
+    @Override
+    public void mimic(DShapeModel model)
+    {
+        DTextModel mimic = (DTextModel) model;
+        
+        setText(mimic.getText());
+        setFontStyle(mimic.getFontStyle());
+        super.mimic(model);
+    } //End mimic
+    
     public String getText()
     {
         return text;

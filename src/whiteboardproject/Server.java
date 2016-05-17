@@ -8,6 +8,11 @@ package whiteboardproject;
 /**
  *
  * @author Kiyeon
+ * Kyle Del Castillo
+ * Student #009445384
+ * CS 151 - Object Oriented Design
+ * Prof. Vidya Rangasayee
+ * 
  */
 
 import java.beans.XMLEncoder;
@@ -15,6 +20,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.net.*;
+import java.util.Iterator;
 
 public class Server extends Thread
 {
@@ -85,5 +91,31 @@ public class Server extends Thread
         
         return messageStream.toString();
     } //End getXMLStringMessage
+    
+    //Server is responsible for sending the message
+    public void sendMessage(int command, DShapeModel model)
+    {
+        MessageNotification message = new MessageNotification();
+        message.setCommand(command);
+        message.setModel(model);
+        
+        String xmlString = getXMLStringMessage(message);
+        Iterator<ObjectOutputStream> it = whiteboard.getOutputs().iterator();
+        
+        while(it.hasNext())
+        {
+            ObjectOutputStream out = it.next();
+            try
+            {
+                out.writeObject(xmlString);
+                out.flush();
+            }
+            catch(Exception e)
+            {
+                e.printStackTrace();
+                it.remove();
+            }
+        }
+    } //End sendMessage
     
 } //End Server Class

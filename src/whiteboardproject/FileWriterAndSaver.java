@@ -9,6 +9,8 @@ package whiteboardproject;
  *
  * @author Kiyeon
  */
+import java.awt.Graphics;
+import java.awt.image.BufferedImage;
 import java.beans.XMLDecoder;
 import java.beans.XMLEncoder;
 import java.io.BufferedInputStream;
@@ -18,6 +20,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import javax.imageio.*;
 
 public class FileWriterAndSaver 
 {
@@ -77,5 +80,27 @@ public class FileWriterAndSaver
         }
 
     } //End open
+    
+    public void saveImage(File file) 
+    {
+        
+        BufferedImage image = (BufferedImage) c.createImage(c.getWidth(), c.getHeight());
+        
+        Graphics g = image.getGraphics();
+        c.paintAll(g);
+        g.dispose();
+        
+        File pngFile = new File(file + ".PNG");
+        
+        try 
+        {
+            ImageIO.write(image, "PNG", pngFile);
+        } 
+        catch (IOException e) 
+        {
+            e.printStackTrace();
+        }
+        
+    }
 
 } //End FileWriterAndSaver

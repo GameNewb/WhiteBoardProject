@@ -130,11 +130,10 @@ public abstract class DShape implements ModelListener
                 for(int j = 0; j < 2; j++)
                 {
                     knobs.add(new Point(bounds.x + bounds.width * i, bounds.y + bounds.height * j));
-                    
                 }
             }
             
-            //4-point specific, orders the knobs to make it easier to compute an anchor
+            //4-point specific, makes it easier to compute an anchor
             Point temp = knobs.remove(2);
             knobs.add(temp);
             needsRecomputeKnobs = false;
@@ -147,7 +146,7 @@ public abstract class DShape implements ModelListener
     public void removeCorrespondingShape()
     {
         model.removeCorrespondingShape();
-    }
+    } //End removeCorrespondingShape
     
     //Checks to see if a knob is selected
     public boolean selectedKnob(Point click, Point knobCenter) 
@@ -177,6 +176,7 @@ public abstract class DShape implements ModelListener
             canvas.repaintShape(this);
             
             //If bounds have changed, repaint the area
+            //Prevents the "swirl" effect when moving objects
             if(!lastBounds.equals(getBounds())) 
             {
                 canvas.repaintArea(getBigBoundsOfLastPosition());
@@ -193,7 +193,24 @@ public abstract class DShape implements ModelListener
             g.fillRect(point.x - KNOB_SIZE/2, point.y - KNOB_SIZE/2, KNOB_SIZE, KNOB_SIZE);
         }
     } //End drawKnobs
-    
+ 
+    protected void drawBorders(Graphics2D g2, DShape shape)
+    {
+        if(shape instanceof DRect)
+        {
+            g2.setStroke(new BasicStroke(2));
+            g2.setColor(Color.black);
+            g2.drawRect(model.getX(), model.getY(), model.getWidth(), model.getHeight());
+            g2.setStroke(g2.getStroke());
+        }
+        else
+        {
+            g2.setStroke(new BasicStroke(2));
+            g2.setColor(Color.black);
+            g2.drawOval(model.getX(), model.getY(), model.getWidth(), model.getHeight());
+            g2.setStroke(g2.getStroke());
+        }
+    }
     abstract public DShapeModel getModel();
     
     abstract public void draw(Graphics g, boolean selected);

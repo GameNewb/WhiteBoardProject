@@ -12,54 +12,60 @@ package whiteboardproject;
 
 import java.awt.*;
 import java.awt.event.*;
-import java.awt.image.BufferedImage;
-import java.beans.XMLDecoder;
-import java.beans.XMLEncoder;
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
 import java.util.*;
 import javax.swing.*;
-
+import java.awt.Graphics2D;
 
 public class Canvas extends JPanel implements ModelListener
 {
     private JPopupMenu popupMenu;
+    private JMenuItem addBorder;
+    private JMenuItem copyShape;
+    private JMenuItem pasteShape;
+    private JMenuItem shapeRemoval;
+    
     public static final int SIZE = 400;
     public static final int INITIAL_POSITION = 10;
     public static final int INITIAL_SIZE = 20;
     
     private static final Random rand = new Random();
     
-    //Not used anymore due to requirement change
     private static int randomSize;
     private static int randomPosition;
     
     private ArrayList<DShape> shapes;
+    private ArrayList<DShape> shapesWithBorders;
     private ArrayList<DShapeModel> modelShapes;
     
     private DShape selected;
+    private DShape copiedShape;
+    private DShapeModel copiedModel;
+    
     private Point movingPoint;
     private Point anchorPoint;
     
     private int lastX, lastY;
     
     private Whiteboard whiteboard;
+    
     private FileWriterAndSaver fws;
     
-    public Canvas(Whiteboard bard) 
+    private boolean hasPasted = false;
+            
+    public Canvas(Whiteboard board) 
     {
         setMinimumSize(new Dimension(SIZE, SIZE));
         setPreferredSize(getMinimumSize());
         setBackground(Color.white);
         
-        whiteboard = bard;
+        generatePopupMenu();
+        
+        whiteboard = board;
         
         shapes = new ArrayList<DShape>();
         modelShapes = new ArrayList<DShapeModel>();
+        shapesWithBorders = new ArrayList<DShape>();
         
         fws = new FileWriterAndSaver(modelShapes, this);
         
@@ -79,9 +85,50 @@ public class Canvas extends JPanel implements ModelListener
                 }
                 else
                 {
+                    //Disables buttons for clients
                     notifyTextEnabling();
                 }
                
+            }
+            
+            
+            /*
+             *  THIS IS ADDED FUNCTIONALITY - NOT PART OF THE REQUIREMENT
+             *  Add border will only work on server/basic side
+             *  And will only work for DRect and DOval
+             */
+            public void mouseReleased(MouseEvent e)
+            {
+                rightClickFunctionality(e.getX(), e.getY());
+                popupMenu.removeAll();
+                    
+                popupMenu.add(addBorder);
+                popupMenu.add(copyShape);
+                popupMenu.add(pasteShape);
+                popupMenu.add(shapeRemoval);
+                
+                //If clicked on a DRect or DOval shape
+                if(selected != null && e.getButton() == MouseEvent.BUTTON3)
+                {
+                    if(selected instanceof DRect || selected instanceof DOval)
+                    {
+                        addBorder.setEnabled(true);
+                        copyShape.setEnabled(true);
+                    }
+                    shapeRemoval.setEnabled(true);
+                    popupMenu.show(Canvas.this, e.getX(), e.getY());   
+                }
+                else if(e.getButton() == MouseEvent.BUTTON3) //If clicked on canvas
+                {
+                    addBorder.setEnabled(false);
+                    copyShape.setEnabled(false);
+                    pasteShape.setEnabled(false);
+                    shapeRemoval.setEnabled(false);
+                    
+                    pasteFunctionality(e.getX(), e.getY());
+                    
+                    popupMenu.show(Canvas.this, e.getX(), e.getY());
+                }
             }
         });
         
@@ -107,6 +154,7 @@ public class Canvas extends JPanel implements ModelListener
                }
            }
         });
+        
     } //End Canvas constructor
     
     //Add shape to canvas
@@ -118,7 +166,8 @@ public class Canvas extends JPanel implements ModelListener
         }
         
     	modelShapes.add(model);
-        //Repaint are where previous shape was
+        
+        //Repaint where the previous shape was
         //This makes the new shape move to the front
         if(selected != null) 
         {
@@ -156,7 +205,7 @@ public class Canvas extends JPanel implements ModelListener
         
         if(whiteboard.runningAsServer())
         {
-            whiteboard.sendMessage(MessageNotification.ADD, model);
+            whiteboard.getServer().sendMessage(MessageNotification.ADD, model);
         }
         
         
@@ -168,6 +217,11 @@ public class Canvas extends JPanel implements ModelListener
     {
         return shapes;
     } //End getShapes
+    
+    public ArrayList<DShape> getShapesWithBorders()
+    {
+        return shapesWithBorders;
+    } //End getShapesWithBords
     
     //Returns an array list of all the shape models of the shapes on the canvas
     public ArrayList<DShapeModel> getShapeModels() 
@@ -205,10 +259,18 @@ public class Canvas extends JPanel implements ModelListener
         Graphics2D g2 = (Graphics2D) g;
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         super.paintComponent(g2);
+        
         for(DShape shape : shapes)
         {
             shape.draw(g2, (selected == shape));
+            if(shapesWithBorders.contains(shape))
+            {
+                shape.drawBorders(g2,shape);
+                repaint();
+            }
         }
+        
+        
     } //End paintComponent
     
     //Select the object that contains the given point if it exists
@@ -244,12 +306,13 @@ public class Canvas extends JPanel implements ModelListener
                 if(shape.containsPoint(pt))
                     selected = shape;
             }
-            
         }
         
+        //If current whiteboard is in server mode
+        //Send message to the client table for selection update
         if(selected != null && whiteboard.runningAsServer())
         {
-            whiteboard.sendMessage(MessageNotification.CHANGE, selected.getModel());
+            whiteboard.getServer().sendMessage(MessageNotification.CHANGE, selected.getModel());
         }
         
         //Update table selection 
@@ -261,7 +324,7 @@ public class Canvas extends JPanel implements ModelListener
     public DShape getSelected()
     {
         return selected;
-    }
+    } //End getSelected
     
     public void setText(String text)
     {
@@ -311,7 +374,7 @@ public class Canvas extends JPanel implements ModelListener
         }
         
         return null;
-    }
+    } //End getShapeID
     
     //Return a random size for each shape created
     //Size is limited to 200 so that it does not cover the entire canvas
@@ -327,6 +390,7 @@ public class Canvas extends JPanel implements ModelListener
         return randomPosition = rand.nextInt(350) + 1;
     } //End getRandomPosition
     
+    
     private void notifyTextEnabling()
     {
         if(selected instanceof DText)
@@ -340,12 +404,105 @@ public class Canvas extends JPanel implements ModelListener
             whiteboard.getFontSelector().setEnabled(false);
         }
     }
+    
+    private void rightClickFunctionality(int x, int y)
+    {
+        if(selected instanceof DRect || selected instanceof DOval)
+        {
+            addBorder.setEnabled(true);
+            addBorder.addActionListener(new ActionListener(){
+                public void actionPerformed(ActionEvent ex)
+                {
+                    shapesWithBorders.add(selected);
+                }
+            });
+        }
+        else
+        {
+            addBorder.setEnabled(false);
+        }
+
+        copyShape.addActionListener(new ActionListener(){
+            public void actionPerformed(ActionEvent e)
+            {
+                if(selected instanceof DRect || selected instanceof DOval)
+                {
+                    copiedShape = selected;
+                    copiedModel = copiedShape.getModel();
+                }
+            }
+        });
+
+        pasteFunctionality(x, y);
+        
+        shapeRemoval.addActionListener(new ActionListener(){
+            public void actionPerformed(ActionEvent e)
+            {
+                removeCorrespondingShape(selected);
+            }
+        });
+    } //End rightClickFunctionality
+    
+    private void pasteFunctionality(int x, int y)
+    {
+        if(copiedShape != null)
+        {
+            pasteShape.setEnabled(true);
+            pasteShape.addActionListener(new ActionListener(){
+                public void actionPerformed(ActionEvent e)
+                {
+                    //Add shape to current server and client
+                    try
+                    {
+                        if(copiedModel instanceof DRectModel)
+                        {
+                            DRectModel rect = new DRectModel();
+                            rect.setColor(copiedModel.getColor());
+                            //rect.setBounds(copiedModel.getX()+10, copiedModel.getY()+10, copiedModel.getWidth(), copiedModel.getHeight());
+                            rect.setBounds(x, y, copiedModel.getWidth(), copiedModel.getHeight());
+                            addShape(rect);
+                        }
+                        else if(copiedModel instanceof DOvalModel)
+                        {
+                            DOvalModel oval = new DOvalModel();
+                            oval.setColor(copiedModel.getColor());
+                            oval.setBounds(x, y, copiedModel.getWidth(), copiedModel.getHeight());
+                            addShape(oval);
+                        }
+
+                        if(whiteboard.runningAsServer())
+                        {
+                            whiteboard.getServer().sendMessage(MessageNotification.ADD, copiedShape.getModel());
+                        }
+                    }
+                    catch(Exception ex){}
+
+                    pasteShape.setEnabled(false);
+                    copiedShape = null;
+                }
+            });
+        }
+    } //End pasteFunctionality
+    
+    private void generatePopupMenu()
+    {
+        //These popup items are not part of the requirement
+        popupMenu = new JPopupMenu();
+        addBorder = new JMenuItem("Add Border");
+        copyShape = new JMenuItem("Copy Shape");
+        pasteShape = new JMenuItem("Paste Shape");
+        shapeRemoval = new JMenuItem("Remove Shape");
+        addBorder.setEnabled(false);
+        copyShape.setEnabled(false);
+        pasteShape.setEnabled(false);
+        shapeRemoval.setEnabled(false);
+    }
 
     public void modelChanged(DShapeModel model) 
     {
         if(whiteboard.runningAsServer() && !model.modelRemoved())
         {
-            whiteboard.sendMessage(MessageNotification.CHANGE, model);
+            whiteboard.getServer().sendMessage(MessageNotification.CHANGE, model);
         }
     }
     
@@ -357,7 +514,12 @@ public class Canvas extends JPanel implements ModelListener
             shapes.add(0,selected);
         }
         
-        /* Very shape specifc, moves shape 1 by 1
+        if(!shapesWithBorders.isEmpty() && shapesWithBorders.remove(selected))
+        {
+            shapesWithBorders.add(0,selected);
+        }
+        
+        /* Very shape specific, moves shape 1 by 1
     	for(int i = this.shapes.size() - 1; i > 0; i--)
         {
             if(selected.equals(shapes.get(i)))
@@ -376,7 +538,7 @@ public class Canvas extends JPanel implements ModelListener
     	whiteboard.moveBack(selected);
         if(whiteboard.runningAsServer())
         {
-            whiteboard.sendMessage(MessageNotification.BACK, selected.getModel());
+            whiteboard.getServer().sendMessage(MessageNotification.BACK, selected.getModel());
         }
         this.repaint();
     }
@@ -388,6 +550,11 @@ public class Canvas extends JPanel implements ModelListener
         if(!shapes.isEmpty() && shapes.remove(selected))
         {
             shapes.add(selected);
+        }
+        
+        if(!shapesWithBorders.isEmpty() && shapesWithBorders.remove(selected))
+        {
+            shapesWithBorders.add(selected);
         }
         
         /* Very shape specific, moves shape 1 by 1
@@ -409,7 +576,7 @@ public class Canvas extends JPanel implements ModelListener
     	whiteboard.moveFront(selected);
         if(whiteboard.runningAsServer())
         {
-            whiteboard.sendMessage(MessageNotification.FRONT, selected.getModel());
+            whiteboard.getServer().sendMessage(MessageNotification.FRONT, selected.getModel());
         }
     	this.repaint();
         
@@ -438,6 +605,7 @@ public class Canvas extends JPanel implements ModelListener
         repaintShape(shape);
     }
     
+    
     void save(File file)
     {
     	fws.save(file);
@@ -447,11 +615,35 @@ public class Canvas extends JPanel implements ModelListener
     	fws.open(file);
     }
     
+    void saveImageFile(File f)
+    {
+        //Removes the knob selection before drawing
+        DShape lastSelected = selected;
+        selected = null;
+        
+        fws.saveImage(f);
+        
+        selected = lastSelected;
+    }
+    
     void clear(){
-    	
+        
+        //Clear everything from client
+    	if(whiteboard.runningAsServer())
+        {
+            for(int i = 0; i < shapes.size(); i++)
+            {
+                whiteboard.getServer().sendMessage(MessageNotification.REMOVE, shapes.get(i).getModel());
+            }
+        }
+        
     	shapes.clear();
+        shapesWithBorders.clear();
+        modelShapes.clear();
+        
         selected = null;
         whiteboard.clearTable();
+        
     	repaint();
     	 
     }
@@ -463,7 +655,7 @@ public class Canvas extends JPanel implements ModelListener
         
         if(whiteboard.runningAsServer())
         {
-            whiteboard.sendMessage(MessageNotification.REMOVE, selected.getModel());
+            whiteboard.getServer().sendMessage(MessageNotification.REMOVE, selected.getModel());
         }
     	
     	repaint();
@@ -487,35 +679,6 @@ public class Canvas extends JPanel implements ModelListener
     	
     	selected.setColor(c);
     	this.repaint();
-    }
-    
-    protected class CanvasMouseHandler extends MouseAdapter implements MouseMotionListener{
-    	public void mousePressed(MouseEvent e) {
-                    
-    		selectObject(e.getPoint());   
-    	}
-    	
-    	public void mouseDragged(MouseEvent e) {
-    		
-    		int dx = e.getX() - lastX;
-    		int dy = e.getY() - lastY;
-    		lastX = e.getX(); 
-    		lastY = e.getY();
-    		if(movingPoint != null) 
-    		{
-    			movingPoint.x += dx;
-    			movingPoint.y += dy;
-    			selected.modifyShapeWithPoints(anchorPoint, movingPoint);
-               
-    		} 
-    		else if(selected != null){
-    			selected.move(dx, dy);
-
-    		}
-               
-           
-    	}
-        
     }
     
 } //End Canvas

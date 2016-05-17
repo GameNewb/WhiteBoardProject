@@ -48,6 +48,17 @@ public class DLineModel extends DShapeModel
         super.move(dx, dy);
         
     } //End move
+    
+    @Override
+    public void mimic(DShapeModel model)
+    {
+        //Cast mimic line object
+        DLineModel mimic = (DLineModel) model;
+        
+        setPoint1(mimic.getPoint1());
+        setPoint2(mimic.getPoint2());
+        super.mimic(model);
+    } //End mimic
    
     public Point getPoint1()
     {

@@ -29,7 +29,7 @@ public class DRect extends DShape
         g.setColor(model.getColor());
         Rectangle bounds = model.getBounds();
         g.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
-        
+     
         //If shape is selected, draw the knobs for it
         if(selected) 
         {

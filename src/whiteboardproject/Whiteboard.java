@@ -127,7 +127,7 @@ public class Whiteboard extends JFrame
     
     //Add shape to the Canvas
     private void addShape(DShapeModel model) 
-    {
+    {   
         if(model instanceof DLineModel)
         {
             //Cast as a DLine
@@ -142,6 +142,11 @@ public class Whiteboard extends JFrame
         
         canvas.addShape(model);
     } //End addShape
+    
+    private void addCopiedShape(DShapeModel model)
+    {
+        canvas.addShape(model);
+    }
     
     private void addRandomizedShape(DShapeModel model)
     {
@@ -212,6 +217,24 @@ public class Whiteboard extends JFrame
             }
         });
         
+        JMenuItem image = new JMenuItem("Save to PNG");
+        image.addMouseListener(new Hover());
+        image.addActionListener(new ActionListener(){
+            public void actionPerformed(ActionEvent e)
+            {
+                saveCanvasImage();
+            }
+        });
+        
+        JMenuItem createWindow = new JMenuItem("Open New Window");
+        createWindow.addMouseListener(new Hover());
+        createWindow.addActionListener(new ActionListener(){
+            public void actionPerformed(ActionEvent e)
+            {
+                createNewWindow();
+            }
+        });
+        
         createControlBackgroundMenu();
         createRandomizedMenu();
         createAboutMenu();
@@ -220,11 +243,18 @@ public class Whiteboard extends JFrame
         fileMenu.add(save);
         fileMenu.add(open);
         fileMenu.add(clear);
+        fileMenu.add(image);
+        fileMenu.addSeparator();
+        fileMenu.add(createWindow);
         menuBar.add(fileMenu);
         menuBar.add(backgroundMenu);
         menuBar.add(randomizedMenu);
         menuBar.add(musicMenu);
         menuBar.add(aboutMenu);
+        
+        allComponents.add(createWindow);
+        allComponents.add(open);
+        allComponents.add(clear);
         
         setJMenuBar(menuBar);
     } //End createMenuBar
@@ -362,7 +392,15 @@ public class Whiteboard extends JFrame
         serverButton.addActionListener(new ActionListener(){
             public void actionPerformed(ActionEvent e)
             {
-                serverSide();
+                //Prevents the user from initiating a new server
+                if(Whiteboard.this.runningAsServer())
+                {
+                    JOptionPane.showMessageDialog(Whiteboard.this, "Current window is already running as a Server.", "Server Running", JOptionPane.ERROR_MESSAGE);
+                }
+                else
+                {
+                    serverSide();
+                }
             }
         });
         
@@ -370,7 +408,16 @@ public class Whiteboard extends JFrame
         clientButton.addActionListener(new ActionListener(){
             public void actionPerformed(ActionEvent e)
             {
-                clientSide();
+                //Double checks to see if current window isn't in server mode already
+                //This prevents the window from going to Server to Client
+                if(Whiteboard.this.runningAsServer())
+                {
+                    JOptionPane.showMessageDialog(Whiteboard.this, "Current window is already running as a Server.", "Server Running", JOptionPane.ERROR_MESSAGE);
+                }
+                else
+                {
+                    clientSide();
+                }
             }
         });
     	
@@ -403,8 +450,12 @@ public class Whiteboard extends JFrame
         this.removeButton.addActionListener(new ActionListener(){
             
             @Override
-            public void actionPerformed(ActionEvent e) {
-                canvas.selectShapeForRemoval();
+            public void actionPerformed(ActionEvent e) 
+            {
+                if(canvas.getSelected() != null)
+                {
+                    canvas.selectShapeForRemoval();
+                }
 
             }
         	
@@ -418,7 +469,11 @@ public class Whiteboard extends JFrame
 
             @Override
             public void actionPerformed(ActionEvent e) {
-                canvas.moveFront();
+                
+                if(canvas.getSelected() != null)
+                {
+                    canvas.moveFront();
+                }
 
             }
         	
@@ -431,7 +486,11 @@ public class Whiteboard extends JFrame
 
             @Override
             public void actionPerformed(ActionEvent e) {
-                canvas.moveBack();
+                
+                if(canvas.getSelected() != null)
+                {
+                    canvas.moveBack();
+                }
 
             }
         });
@@ -635,7 +694,7 @@ public class Whiteboard extends JFrame
                         + prof
                         + "<h4>Created By: </h4>"
                         + "<p> Kyle Del Castillo - SID #009445384<br>" 
-                        + "Huy Vo - SID # <br><br>"
+                        + "Huy Vo - SID #010106096 <br><br>"
                         + "";
                 
                 JOptionPane.showMessageDialog(null, s, "About Us", JOptionPane.INFORMATION_MESSAGE);
@@ -760,15 +819,31 @@ public class Whiteboard extends JFrame
         }
     } //End openCanvas
     
+    private void saveCanvasImage()
+    {
+        int value = fileChooser.showSaveDialog(this);
+        
+        if(value == JFileChooser.APPROVE_OPTION)
+        {
+            canvas.saveImageFile(fileChooser.getSelectedFile());
+        }
+    }
+    
     public void serverSide()
     {
         String currentPort = JOptionPane.showInputDialog("Server Port: ", "39587");
-        userPort = Integer.parseInt(currentPort); //User specified port
         
         if(currentPort != null)
         {
+            userPort = Integer.parseInt(currentPort); //User specified port
+            Color color = Color.decode("#7c0320");
+            
             currentMode = serverMode;
+            modeLabel.setFont(new Font("Times New Roman", Font.BOLD, 20));
             modeLabel.setText(serverMode);
+            modeLabel.setForeground(color);
+            controlBox.setBackground(new Color(238,238,238));
+            
             serverAccepter = new Server(this, canvas, userPort);
             serverAccepter.start();
         }
@@ -790,45 +865,23 @@ public class Whiteboard extends JFrame
             }
             
             currentMode = clientMode;
+            modeLabel.setFont(new Font("Times New Roman", Font.BOLD, 16));
             modeLabel.setText(clientMode);
+            modeLabel.setForeground(Color.decode("#7f6000"));
+            
             clientHandler = new Client(this, canvas, portNumber[0].trim(), Integer.parseInt(portNumber[1]));
             clientHandler.start();
         }
     } //End clientSide
     
-    public void sendMessage(int command, DShapeModel model)
-    {
-        MessageNotification message = new MessageNotification();
-        message.setCommand(command);
-        message.setModel(model);
-        
-        String xmlString = serverAccepter.getXMLStringMessage(message);
-        Iterator<ObjectOutputStream> it = outputList.iterator();
-        
-        while(it.hasNext())
-        {
-            ObjectOutputStream out = it.next();
-            try
-            {
-                out.writeObject(xmlString);
-                out.flush();
-            }
-            catch(Exception e)
-            {
-                e.printStackTrace();
-                it.remove();
-            }
-        }
-    } //End sendMessage
-    
     public boolean runningAsServer()
     {
-        return currentMode == serverMode;
+        return currentMode.equals(serverMode);
     } //End runningAsServer
     
     public boolean runningAsClient()
     {
-        return currentMode == clientMode;
+        return currentMode.equals(clientMode);
     } //End runningAsClinet
     
     public JTextField getTextField()
@@ -893,6 +946,16 @@ public class Whiteboard extends JFrame
        
     } //End generateRandomShapes
     
+    public Server getServer()
+    {
+        return serverAccepter;
+    }
+    
+    public Client getClient()
+    {
+        return clientHandler;
+    }
+    
     public void generateRandomColors()
     {
         int nShapes = 0;
@@ -932,15 +995,12 @@ public class Whiteboard extends JFrame
                         break;
                     case 2: 
                         addRandomizedShape(new DOvalModel());
-                        //canvas.setRandomizedColor(randomColor);
                         break;
                     case 3:
                         addRandomizedShape(new DLineModel());
-                        //canvas.setRandomizedColor(randomColor);
                         break;
                     case 4: 
                         addRandomizedShape(new DTextModel());
-                        //canvas.setRandomizedColor(randomColor);
                         break;
                 }
             }
@@ -948,12 +1008,20 @@ public class Whiteboard extends JFrame
        
     } //End generateRandomShapes
     
+    private void createNewWindow()
+    {
+        Whiteboard whiteboard = new Whiteboard();
+    }
+    
     public static void main(String[] args) 
     {
         Whiteboard whiteboard = new Whiteboard();
-        Whiteboard whiteboard2 = new Whiteboard();
     } //End main
     
+    
+    /*
+        NOT PART OF REQUIREMENT 
+    */
     private void musicPlayer()
     {
         try{
